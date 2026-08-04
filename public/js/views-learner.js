@@ -1,4 +1,3 @@
-// Προβολές για τον ρόλο "Εκπαιδευόμενος".
 var Views = window.Views = window.Views || {};
 Views.learner = {};
 
@@ -77,9 +76,9 @@ Views.learner.courseDetail = async function (p, app) {
       <h3 style="margin-top:2rem">Ενότητες</h3>
       <div class="module-list">
         ${modules.map((m, i) => {
-          const done = !!progressMap[m.id];
-          const unlocked = i <= nextUnlockedIndex;
-          return `
+        const done = !!progressMap[m.id];
+        const unlocked = i <= nextUnlockedIndex;
+        return `
           <div class="module-item ${done ? 'done' : ''} ${!unlocked ? 'locked' : ''}">
             <div class="module-header">
               <span>${i + 1}. ${escapeHtml(m.title)}</span>
@@ -98,8 +97,8 @@ Views.learner.courseDetail = async function (p, app) {
       <h3>Κουίζ Αυτοαξιολόγησης</h3>
       <div class="quiz-list">
         ${course.quizzes.length ? course.quizzes.map(q => {
-          const gateOk = q.module_id ? !!progressMap[q.module_id] : true;
-          return `<div class="quiz-item">
+        const gateOk = q.module_id ? !!progressMap[q.module_id] : true;
+        return `<div class="quiz-item">
             <span>${escapeHtml(q.title)} <span class="muted">(${Math.round(q.time_limit_seconds / 60)}′ · βάση επιτυχίας ${q.passing_score}%)</span></span>
             ${gateOk ? `<a class="btn btn-primary" href="#/quiz/${q.id}">Έναρξη Κουίζ</a>` : `<span class="badge">🔒 Ολοκληρώστε πρώτα τη σχετική ενότητα</span>`}
           </div>`;

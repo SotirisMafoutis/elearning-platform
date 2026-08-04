@@ -1,4 +1,3 @@
-// Προβολές για τον ρόλο "Διαχειριστής".
 var Views = window.Views = window.Views || {};
 Views.admin = {};
 
@@ -7,8 +6,21 @@ Views.admin.dashboard = async function (p, app) {
   app.innerHTML = `
     <h2>Πίνακας Διαχειριστή</h2>
     <div class="card-grid">
-      <div class="card"><h3 style="font-family:var(--font-body); font-size:2rem; color:var(--color-gold)">${pendingInstructors.length}</h3><p class="muted">Εκπαιδευτές σε αναμονή έγκρισης</p><a href="#/admin/instructors">Προβολή →</a></div>
-      <div class="card"><h3 style="font-family:var(--font-body); font-size:2rem; color:var(--color-gold)">${pendingCourses.length}</h3><p class="muted">Μαθήματα σε αναμονή έγκρισης</p><a href="#/admin/courses">Προβολή →</a></div>
+      <div class="card">
+        <h3 style="font-family:var(--font-body); font-size:2rem; color:var(--color-gold)">
+          ${pendingInstructors.length}
+        </h3>
+        <p class="muted">
+          Εκπαιδευτές σε αναμονή έγκρισης
+        </p>
+          <a href="#/admin/instructors">Προβολή →</a>
+        </div>
+      <div class="card">
+        <h3 style="font-family:var(--font-body); font-size:2rem; color:var(--color-gold)">
+          ${pendingCourses.length}
+        </h3>
+        <p class="muted">Μαθήματα σε αναμονή έγκρισης</p>
+        <a href="#/admin/courses">Προβολή →</a></div>
     </div>`;
 };
 
@@ -17,7 +29,14 @@ Views.admin.instructors = async function (p, app) {
   app.innerHTML = `
     <h2>Εκπαιδευτές</h2>
     <table class="data-table">
-      <thead><tr><th>Όνομα</th><th>Email</th><th>Κατάσταση</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th>Όνομα</th>
+          <th>Email</th>
+          <th>Κατάσταση</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         ${instructors.map(i => `
           <tr><td>${escapeHtml(i.full_name)}</td><td>${escapeHtml(i.email)}</td>
@@ -26,8 +45,16 @@ Views.admin.instructors = async function (p, app) {
       </tbody>
     </table>`;
 
-  app.querySelectorAll('.approve-btn').forEach(b => b.onclick = async () => { await api(`/admin/instructors/${b.dataset.id}/approve`, { method: 'POST' }); router(); });
-  app.querySelectorAll('.reject-btn').forEach(b => b.onclick = async () => { if (confirm('Απόρριψη αίτησης εκπαιδευτή;')) { await api(`/admin/instructors/${b.dataset.id}/reject`, { method: 'POST' }); router(); } });
+  app.querySelectorAll('.approve-btn').forEach(b => b.onclick = async () => { 
+    await api(`/admin/instructors/${b.dataset.id}/approve`, { method: 'POST' }); 
+    router(); 
+  });
+  
+  app.querySelectorAll('.reject-btn').forEach(b => b.onclick = async () => { 
+    if (confirm('Απόρριψη αίτησης εκπαιδευτή;')) { 
+      await api(`/admin/instructors/${b.dataset.id}/reject`, { method: 'POST' }); router(); 
+    } 
+  });
 };
 
 Views.admin.coursesReview = async function (p, app) {

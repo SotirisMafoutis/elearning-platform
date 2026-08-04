@@ -1,4 +1,3 @@
-// Προβολές για τον ρόλο "Εκπαιδευτής".
 var Views = window.Views = window.Views || {};
 Views.instructor = {};
 
@@ -6,7 +5,7 @@ function statusLabel(s) { return { draft: 'Πρόχειρο', pending: 'Σε α�
 function statusBadgeClass(s) { return { draft: '', pending: 'badge-info', published: 'badge-success', rejected: 'badge-error' }[s] || ''; }
 
 Views.instructor.dashboard = async function (p, app) {
-  // Φρέσκος έλεγχος έγκρισης (σε περίπτωση που εγκρίθηκε μετά τη σύνδεση).
+  // Έλεγχος έγκρισης (σε περίπτωση που εγκρίθηκε μετά τη σύνδεση).
   const me = await api('/auth/me');
   setSession(getToken(), me);
 
@@ -50,9 +49,11 @@ Views.instructor.courseForm = async function (p, app) {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      const r = await api('/courses', { method: 'POST', body: {
-        title: fd.get('title'), description: fd.get('description'), category_id: fd.get('category_id') || null, prerequisites: fd.get('prerequisites')
-      } });
+      const r = await api('/courses', {
+        method: 'POST', body: {
+          title: fd.get('title'), description: fd.get('description'), category_id: fd.get('category_id') || null, prerequisites: fd.get('prerequisites')
+        }
+      });
       location.hash = `#/instructor/courses/${r.id}`;
     } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
   };
@@ -67,9 +68,9 @@ Views.instructor.courseEdit = async function (p, app) {
     <h2>${escapeHtml(course.title)} <span class="badge ${statusBadgeClass(course.status)}">${statusLabel(course.status)}</span></h2>
 
     <div class="tool-links">
-      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/questions">📝 Τράπεζα Ερωτήσεων</a>
-      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/quizzes">🧩 Διαχείριση Κουίζ</a>
-      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/analytics">📊 Ανάλυση Επιδόσεων</a>
+      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/questions">Τράπεζα Ερωτήσεων</a>
+      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/quizzes">Διαχείριση Κουίζ</a>
+      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/analytics">Ανάλυση Επιδόσεων</a>
     </div>
 
     ${course.status === 'rejected' ? '<div class="alert alert-error">Το μάθημα απορρίφθηκε από τον διαχειριστή. Κάντε τις απαραίτητες αλλαγές και υποβάλετέ το ξανά για έγκριση.</div>' : ''}
@@ -300,10 +301,12 @@ Views.instructor.quizManager = async function (p, app) {
     const qids = Array.from(fd.getAll('qids')).map(Number);
     if (!qids.length) { document.getElementById('msg').innerHTML = '<div class="alert alert-error">Επιλέξτε τουλάχιστον μία ερώτηση.</div>'; return; }
     try {
-      await api(`/courses/${p.id}/quizzes`, { method: 'POST', body: {
-        title: fd.get('title'), module_id: fd.get('module_id') || null,
-        time_limit_seconds: Number(fd.get('time_limit_min')) * 60, passing_score: Number(fd.get('passing_score')), question_ids: qids
-      } });
+      await api(`/courses/${p.id}/quizzes`, {
+        method: 'POST', body: {
+          title: fd.get('title'), module_id: fd.get('module_id') || null,
+          time_limit_seconds: Number(fd.get('time_limit_min')) * 60, passing_score: Number(fd.get('passing_score')), question_ids: qids
+        }
+      });
       router();
     } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
   };
