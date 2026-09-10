@@ -145,6 +145,25 @@ CREATE TABLE IF NOT EXISTS certificates (
 );
 `);
 
+// Ελαφριά μετάβαση σχήματος για ήδη υπάρχουσες βάσεις δεδομένων: προσθέτει τη νέα
+// στήλη/πίνακα μόνο αν λείπει, ώστε να μην χαθούν υπάρχοντα δεδομένα.
+const courseColumns = db.prepare("PRAGMA table_info(courses)").all().map(c => c.name);
+if (!courseColumns.includes('content_text')) {
+  db.exec('ALTER TABLE courses ADD COLUMN content_text TEXT');
+}
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS attachments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL UNIQUE,
+  mime_type TEXT,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`);
+
 function seed() {
   const catCount = db.prepare('SELECT COUNT(*) c FROM categories').get().c;
   if (catCount === 0) {

@@ -9,7 +9,7 @@ function ensureOwnCourse(courseId, instructorId) {
   return db.prepare('SELECT * FROM courses WHERE id=? AND instructor_id=?').get(courseId, instructorId);
 }
 
-//  ΤΡΑΠΕΖΑ ΕΡΩΤΗΣΕΩΝ 
+// ================= ΤΡΑΠΕΖΑ ΕΡΩΤΗΣΕΩΝ =================
 router.get('/courses/:id/questions', authenticate, requireRole('instructor', 'admin'), (req, res) => {
   const course = db.prepare('SELECT * FROM courses WHERE id=?').get(req.params.id);
   if (!course) return res.status(404).json({ error: 'Το μάθημα δεν βρέθηκε.' });
@@ -66,7 +66,7 @@ router.delete('/questions/:id', authenticate, requireRole('instructor'), (req, r
   res.json({ message: 'Η ερώτηση διαγράφηκε.' });
 });
 
-//  ΔΙΑΧΕΙΡΙΣΗ ΚΟΥΙΖ 
+// ================= ΔΙΑΧΕΙΡΙΣΗ ΚΟΥΙΖ =================
 router.get('/courses/:id/quizzes', authenticate, (req, res) => {
   const course = db.prepare('SELECT * FROM courses WHERE id=?').get(req.params.id);
   if (!course) return res.status(404).json({ error: 'Το μάθημα δεν βρέθηκε.' });
@@ -103,7 +103,7 @@ router.delete('/quizzes/:id', authenticate, requireRole('instructor'), (req, res
   res.json({ message: 'Το κουίζ διαγράφηκε.' });
 });
 
-//  ΣΥΜΜΕΤΟΧΗ ΣΕ ΚΟΥΙΖ 
+// ================= ΣΥΜΜΕΤΟΧΗ ΣΕ ΚΟΥΙΖ =================
 router.get('/quizzes/:id/take', authenticate, requireRole('learner'), (req, res) => {
   const quiz = db.prepare('SELECT * FROM quizzes WHERE id=?').get(req.params.id);
   if (!quiz) return res.status(404).json({ error: 'Το κουίζ δεν βρέθηκε.' });

@@ -1,3 +1,4 @@
+// ---------- Δρομολόγηση (hash router) ----------
 const routes = [
   { path: '/login', view: renderLogin, public: true },
   { path: '/register', view: renderRegister, public: true },
@@ -82,7 +83,7 @@ async function router() {
 window.addEventListener('hashchange', router);
 window.addEventListener('DOMContentLoaded', router);
 
-
+// ---------- Κεφαλίδα ----------
 function renderHeader() {
   const header = document.getElementById('header');
   header.className = 'site-header';
@@ -114,7 +115,7 @@ function renderHeader() {
   document.getElementById('logoutBtn').onclick = () => { clearSession(); location.hash = '#/login'; router(); };
 }
 
-//  Είσοδος / Εγγραφή
+// ---------- Είσοδος / Εγγραφή ----------
 function renderLogin(p, app) {
   app.innerHTML = `
     <div class="auth-card">

@@ -1,3 +1,4 @@
+// Προβολές για τον ρόλο "Εκπαιδευτής".
 var Views = window.Views = window.Views || {};
 Views.instructor = {};
 
@@ -5,7 +6,7 @@ function statusLabel(s) { return { draft: 'Πρόχειρο', pending: 'Σε α�
 function statusBadgeClass(s) { return { draft: '', pending: 'badge-info', published: 'badge-success', rejected: 'badge-error' }[s] || ''; }
 
 Views.instructor.dashboard = async function (p, app) {
-  // Έλεγχος έγκρισης (σε περίπτωση που εγκρίθηκε μετά τη σύνδεση).
+  // Φρέσκος έλεγχος έγκρισης (σε περίπτωση που εγκρίθηκε μετά τη σύνδεση).
   const me = await api('/auth/me');
   setSession(getToken(), me);
 
@@ -49,18 +50,19 @@ Views.instructor.courseForm = async function (p, app) {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      const r = await api('/courses', {
-        method: 'POST', body: {
-          title: fd.get('title'), description: fd.get('description'), category_id: fd.get('category_id') || null, prerequisites: fd.get('prerequisites')
-        }
-      });
+      const r = await api('/courses', { method: 'POST', body: {
+        title: fd.get('title'), description: fd.get('description'), category_id: fd.get('category_id') || null, prerequisites: fd.get('prerequisites')
+      } });
       location.hash = `#/instructor/courses/${r.id}`;
     } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
   };
 };
 
 Views.instructor.courseEdit = async function (p, app) {
-  const course = await api(`/courses/${p.id}`);
+  const [course, attachments] = await Promise.all([
+    api(`/courses/${p.id}`),
+    api(`/courses/${p.id}/attachments`),
+  ]);
   const editable = ['draft', 'rejected'].includes(course.status);
 
   app.innerHTML = `
@@ -68,9 +70,9 @@ Views.instructor.courseEdit = async function (p, app) {
     <h2>${escapeHtml(course.title)} <span class="badge ${statusBadgeClass(course.status)}">${statusLabel(course.status)}</span></h2>
 
     <div class="tool-links">
-      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/questions">Τράπεζα Ερωτήσεων</a>
-      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/quizzes">Διαχείριση Κουίζ</a>
-      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/analytics">Ανάλυση Επιδόσεων</a>
+      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/questions">📝 Τράπεζα Ερωτήσεων</a>
+      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/quizzes">🧩 Διαχείριση Κουίζ</a>
+      <a class="btn btn-secondary" href="#/instructor/courses/${course.id}/analytics">📊 Ανάλυση Επιδόσεων</a>
     </div>
 
     ${course.status === 'rejected' ? '<div class="alert alert-error">Το μάθημα απορρίφθηκε από τον διαχειριστή. Κάντε τις απαραίτητες αλλαγές και υποβάλετέ το ξανά για έγκριση.</div>' : ''}
@@ -87,14 +89,24 @@ Views.instructor.courseEdit = async function (p, app) {
       <button class="btn btn-primary" type="submit">Αποθήκευση</button>
     </form>` : `<p>${escapeHtml(course.description || '')}</p>`}
 
+    <h3>Θεωρία / Κείμενο Μαθήματος</h3>
+    <p class="muted">Αυτό το κείμενο (θεωρία, σημειώσεις κ.λπ.) μπορείτε να το ενημερώνετε ανά πάσα στιγμή, ακόμη και μετά τη δημοσίευση του μαθήματος.</p>
+    <form id="contentForm">
+      <textarea name="content_text" rows="8" placeholder="Γράψτε εδώ τη θεωρία, τις σημειώσεις ή οποιοδήποτε επεξηγηματικό κείμενο θέλετε να βλέπουν οι εκπαιδευόμενοι.">${escapeHtml(course.content_text || '')}</textarea>
+      <button class="btn btn-primary" type="submit">Αποθήκευση Θεωρίας</button>
+    </form>
+
+    <h3>Υλικό &amp; Συνημμένα Αρχεία</h3>
+    <p class="muted">Ανεβάστε αρχεία (PDF, Word, PowerPoint, Excel, εικόνες, ZIP — έως 25MB) που θα βλέπουν οι εγγεγραμμένοι εκπαιδευόμενοι. Διαθέσιμο ανά πάσα στιγμή, ακόμη και μετά τη δημοσίευση. Τα αρχεία PDF και εικόνες μπορούν να προβληθούν απευθείας μέσα στην πλατφόρμα.</p>
+    <div class="attachment-list" id="attachmentList"></div>
+    <form id="attachmentForm" style="margin-top:.8rem; display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
+      <input type="file" name="file" id="attachmentInput" required>
+      <button class="btn btn-secondary" type="submit">Ανέβασμα Αρχείου</button>
+    </form>
+    <div id="pdfPreview"></div>
+
     <h3>Ενότητες</h3>
-    <div class="module-list">
-      ${course.modules.map(m => `
-        <div class="module-item"><div class="module-header">
-          <span>${m.order_index}. ${escapeHtml(m.title)}</span>
-          ${editable ? `<button class="btn btn-ghost del-module" data-id="${m.id}">Διαγραφή</button>` : ''}
-        </div></div>`).join('') || '<p class="muted">Δεν έχουν προστεθεί ενότητες ακόμη.</p>'}
-    </div>
+    <div class="module-list" id="moduleList"></div>
 
     ${editable ? `
     <form id="moduleForm">
@@ -113,6 +125,149 @@ Views.instructor.courseEdit = async function (p, app) {
     </div>` : `<button id="deleteBtn" class="btn btn-ghost" style="margin-top:1rem">Διαγραφή Μαθήματος</button>`}
     <div id="msg"></div>`;
 
+  // ---------- Συνημμένα αρχεία: λίστα, προβολή PDF/εικόνας, ανέβασμα, διαγραφή ----------
+  const attachmentListEl = document.getElementById('attachmentList');
+  const pdfPreviewEl = document.getElementById('pdfPreview');
+
+  function drawAttachments() {
+    if (!attachments.length) {
+      attachmentListEl.innerHTML = '<p class="muted">Δεν έχουν ανέβει αρχεία ακόμη.</p>';
+      return;
+    }
+    attachmentListEl.innerHTML = attachments.map(a => {
+      const canPreview = a.mime_type === 'application/pdf' || a.mime_type.startsWith('image/');
+      return `
+      <div class="attachment-item" data-id="${a.id}">
+        <span class="attachment-name">📎 ${escapeHtml(a.original_name)} <span class="muted">(${formatFileSize(a.size_bytes)})</span></span>
+        <span style="display:flex; gap:.4rem">
+          ${canPreview ? `<button class="btn btn-ghost view-attachment" data-id="${a.id}" data-mime="${a.mime_type}" data-name="${escapeHtml(a.original_name)}">Προβολή</button>` : ''}
+          <button class="btn btn-ghost download-attachment" data-id="${a.id}" data-name="${escapeHtml(a.original_name)}">Λήψη</button>
+          <button class="btn btn-ghost del-attachment" data-id="${a.id}">Διαγραφή</button>
+        </span>
+      </div>`;
+    }).join('');
+
+    attachmentListEl.querySelectorAll('.view-attachment').forEach(btn => {
+      btn.onclick = async () => {
+        pdfPreviewEl.innerHTML = '<p class="muted">Φόρτωση προεπισκόπησης…</p>';
+        try {
+          const url = await getFileBlobUrl(`/attachments/${btn.dataset.id}/file`);
+          if (btn.dataset.mime === 'application/pdf') {
+            pdfPreviewEl.innerHTML = `
+              <div class="pdf-preview-box">
+                <div class="pdf-preview-header"><strong>${escapeHtml(btn.dataset.name)}</strong><button class="btn btn-ghost" id="closePreview">Κλείσιμο</button></div>
+                <iframe src="${url}" class="pdf-preview-frame"></iframe>
+              </div>`;
+          } else {
+            pdfPreviewEl.innerHTML = `
+              <div class="pdf-preview-box">
+                <div class="pdf-preview-header"><strong>${escapeHtml(btn.dataset.name)}</strong><button class="btn btn-ghost" id="closePreview">Κλείσιμο</button></div>
+                <img src="${url}" alt="${escapeHtml(btn.dataset.name)}" style="max-width:100%; border-radius:8px;">
+              </div>`;
+          }
+          document.getElementById('closePreview').onclick = () => { pdfPreviewEl.innerHTML = ''; };
+          pdfPreviewEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (err) {
+          pdfPreviewEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+        }
+      };
+    });
+    attachmentListEl.querySelectorAll('.download-attachment').forEach(btn => {
+      btn.onclick = () => downloadFile(`/attachments/${btn.dataset.id}/file`, btn.dataset.name);
+    });
+    attachmentListEl.querySelectorAll('.del-attachment').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Διαγραφή αυτού του αρχείου;')) return;
+        await api(`/attachments/${btn.dataset.id}`, { method: 'DELETE' });
+        router();
+      };
+    });
+  }
+  drawAttachments();
+
+  const attachmentForm = document.getElementById('attachmentForm');
+  if (attachmentForm) attachmentForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('attachmentInput');
+    if (!fileInput.files.length) return;
+    try {
+      await uploadFile(`/courses/${course.id}/attachments`, fileInput.files[0]);
+      router();
+    } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
+  };
+
+  // ---------- Λίστα ενοτήτων: πάντα ορατό το περιεχόμενο (βίντεο/σημειώσεις) + επεξεργασία ----------
+  let editingModuleId = null;
+  const moduleListEl = document.getElementById('moduleList');
+
+  function drawModules() {
+    if (!course.modules.length) {
+      moduleListEl.innerHTML = '<p class="muted">Δεν έχουν προστεθεί ενότητες ακόμη.</p>';
+      return;
+    }
+    moduleListEl.innerHTML = course.modules.map(m => {
+      if (editingModuleId === m.id) {
+        return `
+        <div class="module-item">
+          <form class="edit-module-form" data-id="${m.id}">
+            <label>Τίτλος Ενότητας</label>
+            <input type="text" name="title" value="${escapeHtml(m.title)}" required>
+            <label>URL Βίντεο (προαιρετικό)</label>
+            <input type="url" name="video_url" value="${escapeHtml(m.video_url || '')}" placeholder="https://youtube.com/watch?v=...">
+            <label>Σημειώσεις</label>
+            <textarea name="notes" rows="3">${escapeHtml(m.notes || '')}</textarea>
+            <div style="display:flex; gap:.5rem; margin-top:.5rem">
+              <button class="btn btn-primary" type="submit">Αποθήκευση</button>
+              <button class="btn btn-ghost" type="button" data-cancel="${m.id}">Άκυρο</button>
+            </div>
+          </form>
+        </div>`;
+      }
+      return `
+        <div class="module-item">
+          <div class="module-header">
+            <span>${m.order_index}. ${escapeHtml(m.title)}</span>
+            ${editable ? `<span style="display:flex; gap:.4rem">
+              <button class="btn btn-ghost edit-module" data-id="${m.id}">Επεξεργασία</button>
+              <button class="btn btn-ghost del-module" data-id="${m.id}">Διαγραφή</button>
+            </span>` : ''}
+          </div>
+          <div class="module-body">
+            <p class="muted" style="margin:.3rem 0">🎬 Βίντεο: ${m.video_url ? `<a href="${escapeHtml(m.video_url)}" target="_blank" rel="noopener">${escapeHtml(m.video_url)}</a>` : 'χωρίς βίντεο'}</p>
+            <p style="margin:.3rem 0">${m.notes ? escapeHtml(m.notes) : '<span class="muted">Χωρίς σημειώσεις.</span>'}</p>
+          </div>
+        </div>`;
+    }).join('');
+
+    if (!editable) return;
+
+    moduleListEl.querySelectorAll('.edit-module').forEach(btn => {
+      btn.onclick = () => { editingModuleId = Number(btn.dataset.id); drawModules(); };
+    });
+    moduleListEl.querySelectorAll('[data-cancel]').forEach(btn => {
+      btn.onclick = () => { editingModuleId = null; drawModules(); };
+    });
+    moduleListEl.querySelectorAll('.del-module').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Διαγραφή αυτής της ενότητας;')) return;
+        await api(`/modules/${btn.dataset.id}`, { method: 'DELETE' });
+        router();
+      };
+    });
+    moduleListEl.querySelectorAll('.edit-module-form').forEach(form => {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        try {
+          await api(`/modules/${form.dataset.id}`, { method: 'PUT', body: { title: fd.get('title'), video_url: fd.get('video_url'), notes: fd.get('notes') } });
+          router();
+        } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
+      };
+    });
+  }
+
+  drawModules();
+
   const editForm = document.getElementById('editForm');
   if (editForm) editForm.onsubmit = async (e) => {
     e.preventDefault();
@@ -120,6 +275,15 @@ Views.instructor.courseEdit = async function (p, app) {
     try {
       await api(`/courses/${course.id}`, { method: 'PUT', body: { title: fd.get('title'), description: fd.get('description'), prerequisites: fd.get('prerequisites') } });
       router();
+    } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
+  };
+
+  document.getElementById('contentForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      await api(`/courses/${course.id}/content`, { method: 'PUT', body: { content_text: fd.get('content_text') } });
+      document.getElementById('msg').innerHTML = `<div class="alert alert-success">Η θεωρία αποθηκεύτηκε.</div>`;
     } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
   };
 
@@ -132,14 +296,6 @@ Views.instructor.courseEdit = async function (p, app) {
       router();
     } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
   };
-
-  app.querySelectorAll('.del-module').forEach(btn => {
-    btn.onclick = async () => {
-      if (!confirm('Διαγραφή αυτής της ενότητας;')) return;
-      await api(`/modules/${btn.dataset.id}`, { method: 'DELETE' });
-      router();
-    };
-  });
 
   const submitBtn = document.getElementById('submitBtn');
   if (submitBtn) submitBtn.onclick = async () => {
@@ -301,12 +457,10 @@ Views.instructor.quizManager = async function (p, app) {
     const qids = Array.from(fd.getAll('qids')).map(Number);
     if (!qids.length) { document.getElementById('msg').innerHTML = '<div class="alert alert-error">Επιλέξτε τουλάχιστον μία ερώτηση.</div>'; return; }
     try {
-      await api(`/courses/${p.id}/quizzes`, {
-        method: 'POST', body: {
-          title: fd.get('title'), module_id: fd.get('module_id') || null,
-          time_limit_seconds: Number(fd.get('time_limit_min')) * 60, passing_score: Number(fd.get('passing_score')), question_ids: qids
-        }
-      });
+      await api(`/courses/${p.id}/quizzes`, { method: 'POST', body: {
+        title: fd.get('title'), module_id: fd.get('module_id') || null,
+        time_limit_seconds: Number(fd.get('time_limit_min')) * 60, passing_score: Number(fd.get('passing_score')), question_ids: qids
+      } });
       router();
     } catch (err) { document.getElementById('msg').innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`; }
   };

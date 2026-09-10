@@ -1,3 +1,4 @@
+// Προβολές για τον ρόλο "Εκπαιδευόμενος".
 var Views = window.Views = window.Views || {};
 Views.learner = {};
 
@@ -60,6 +61,7 @@ Views.learner.courseDetail = async function (p, app) {
   while (nextUnlockedIndex < modules.length && progressMap[modules[nextUnlockedIndex].id]) nextUnlockedIndex++;
 
   const isEnrolled = !!course.enrollment;
+  const attachments = isEnrolled ? await api(`/courses/${p.id}/attachments`) : [];
 
   app.innerHTML = `
     <a href="#/courses" class="back-link">← Πίσω στα μαθήματα</a>
@@ -73,12 +75,21 @@ Views.learner.courseDetail = async function (p, app) {
     <div id="msg"></div>
 
     ${isEnrolled ? `
+      ${course.content_text ? `
+      <h3 style="margin-top:2rem">Θεωρία Μαθήματος</h3>
+      <p style="white-space:pre-wrap">${escapeHtml(course.content_text)}</p>` : ''}
+
+      ${attachments.length ? `
+      <h3 style="margin-top:2rem">Υλικό &amp; Συνημμένα</h3>
+      <div class="attachment-list" id="attachmentList"></div>
+      <div id="pdfPreview"></div>` : ''}
+
       <h3 style="margin-top:2rem">Ενότητες</h3>
       <div class="module-list">
         ${modules.map((m, i) => {
-        const done = !!progressMap[m.id];
-        const unlocked = i <= nextUnlockedIndex;
-        return `
+          const done = !!progressMap[m.id];
+          const unlocked = i <= nextUnlockedIndex;
+          return `
           <div class="module-item ${done ? 'done' : ''} ${!unlocked ? 'locked' : ''}">
             <div class="module-header">
               <span>${i + 1}. ${escapeHtml(m.title)}</span>
@@ -97,14 +108,49 @@ Views.learner.courseDetail = async function (p, app) {
       <h3>Κουίζ Αυτοαξιολόγησης</h3>
       <div class="quiz-list">
         ${course.quizzes.length ? course.quizzes.map(q => {
-        const gateOk = q.module_id ? !!progressMap[q.module_id] : true;
-        return `<div class="quiz-item">
+          const gateOk = q.module_id ? !!progressMap[q.module_id] : true;
+          return `<div class="quiz-item">
             <span>${escapeHtml(q.title)} <span class="muted">(${Math.round(q.time_limit_seconds / 60)}′ · βάση επιτυχίας ${q.passing_score}%)</span></span>
             ${gateOk ? `<a class="btn btn-primary" href="#/quiz/${q.id}">Έναρξη Κουίζ</a>` : `<span class="badge">🔒 Ολοκληρώστε πρώτα τη σχετική ενότητα</span>`}
           </div>`;
         }).join('') : '<p class="muted">Δεν υπάρχουν ακόμη διαθέσιμα κουίζ.</p>'}
       </div>` : ''}
   `;
+
+  if (isEnrolled && attachments.length) {
+    const attachmentListEl = document.getElementById('attachmentList');
+    const pdfPreviewEl = document.getElementById('pdfPreview');
+    attachmentListEl.innerHTML = attachments.map(a => {
+      const canPreview = a.mime_type === 'application/pdf' || a.mime_type.startsWith('image/');
+      return `
+      <div class="attachment-item">
+        <span class="attachment-name">📎 ${escapeHtml(a.original_name)} <span class="muted">(${formatFileSize(a.size_bytes)})</span></span>
+        <span style="display:flex; gap:.4rem">
+          ${canPreview ? `<button class="btn btn-ghost view-attachment" data-id="${a.id}" data-mime="${a.mime_type}" data-name="${escapeHtml(a.original_name)}">Προβολή</button>` : ''}
+          <button class="btn btn-ghost download-attachment" data-id="${a.id}" data-name="${escapeHtml(a.original_name)}">Λήψη</button>
+        </span>
+      </div>`;
+    }).join('');
+
+    attachmentListEl.querySelectorAll('.view-attachment').forEach(btn => {
+      btn.onclick = async () => {
+        pdfPreviewEl.innerHTML = '<p class="muted">Φόρτωση προεπισκόπησης…</p>';
+        try {
+          const url = await getFileBlobUrl(`/attachments/${btn.dataset.id}/file`);
+          pdfPreviewEl.innerHTML = btn.dataset.mime === 'application/pdf'
+            ? `<div class="pdf-preview-box"><div class="pdf-preview-header"><strong>${escapeHtml(btn.dataset.name)}</strong><button class="btn btn-ghost" id="closePreview">Κλείσιμο</button></div><iframe src="${url}" class="pdf-preview-frame"></iframe></div>`
+            : `<div class="pdf-preview-box"><div class="pdf-preview-header"><strong>${escapeHtml(btn.dataset.name)}</strong><button class="btn btn-ghost" id="closePreview">Κλείσιμο</button></div><img src="${url}" alt="${escapeHtml(btn.dataset.name)}" style="max-width:100%; border-radius:8px;"></div>`;
+          document.getElementById('closePreview').onclick = () => { pdfPreviewEl.innerHTML = ''; };
+          pdfPreviewEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (err) {
+          pdfPreviewEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+        }
+      };
+    });
+    attachmentListEl.querySelectorAll('.download-attachment').forEach(btn => {
+      btn.onclick = () => downloadFile(`/attachments/${btn.dataset.id}/file`, btn.dataset.name);
+    });
+  }
 
   const enrollBtn = document.getElementById('enrollBtn');
   if (enrollBtn) enrollBtn.onclick = async () => {

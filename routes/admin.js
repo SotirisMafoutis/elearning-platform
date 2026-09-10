@@ -5,7 +5,7 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate, requireRole('admin'));
 
-//  ΕΓΚΡΙΣΗ ΕΚΠΑΙΔΕΥΤΩΝ 
+// ================= ΕΓΚΡΙΣΗ ΕΚΠΑΙΔΕΥΤΩΝ =================
 router.get('/instructors/pending', (req, res) => {
   res.json(db.prepare(`SELECT id, full_name, email, created_at FROM users WHERE role='instructor' AND is_approved=0`).all());
 });
@@ -26,7 +26,7 @@ router.post('/instructors/:id/reject', (req, res) => {
   res.json({ message: 'Η αίτηση απορρίφθηκε.' });
 });
 
-//  ΕΓΚΡΙΣΗ ΔΗΜΟΣΙΕΥΣΗΣ ΜΑΘΗΜΑΤΩΝ 
+// ================= ΕΓΚΡΙΣΗ ΔΗΜΟΣΙΕΥΣΗΣ ΜΑΘΗΜΑΤΩΝ =================
 router.get('/courses/pending', (req, res) => {
   res.json(db.prepare(`SELECT c.*, u.full_name AS instructor_name FROM courses c
                         JOIN users u ON u.id=c.instructor_id WHERE c.status='pending' ORDER BY c.created_at`).all());
@@ -44,7 +44,7 @@ router.post('/courses/:id/reject', (req, res) => {
   res.json({ message: 'Το μάθημα απορρίφθηκε.' });
 });
 
-//  ΚΑΤΗΓΟΡΙΕΣ 
+// ================= ΚΑΤΗΓΟΡΙΕΣ =================
 router.post('/categories', (req, res) => {
   const { name, description } = req.body || {};
   if (!name) return res.status(400).json({ error: 'Το όνομα κατηγορίας είναι υποχρεωτικό.' });
@@ -71,7 +71,7 @@ router.delete('/categories/:id', (req, res) => {
   res.json({ message: 'Η κατηγορία διαγράφηκε.' });
 });
 
-//  ΠΡΟΤΥΠΑ ΠΙΣΤΟΠΟΙΗΤΙΚΩΝ 
+// ================= ΠΡΟΤΥΠΑ ΠΙΣΤΟΠΟΙΗΤΙΚΩΝ =================
 router.get('/certificate-templates', (req, res) => {
   res.json(db.prepare('SELECT * FROM certificate_templates ORDER BY id').all());
 });
@@ -104,7 +104,7 @@ router.delete('/certificate-templates/:id', (req, res) => {
   res.json({ message: 'Το πρότυπο διαγράφηκε.' });
 });
 
-//  ΣΤΑΤΙΣΤΙΚΑ ΠΛΑΤΦΟΡΜΑΣ 
+// ================= ΣΤΑΤΙΣΤΙΚΑ ΠΛΑΤΦΟΡΜΑΣ =================
 router.get('/stats', (req, res) => {
   const courses = db.prepare(`SELECT id, title FROM courses WHERE status='published'`).all();
 

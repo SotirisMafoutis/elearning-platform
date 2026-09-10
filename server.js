@@ -8,6 +8,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/courses'));
+app.use('/api', require('./routes/attachments'));
 app.use('/api', require('./routes/quizzes'));
 app.use('/api', require('./routes/analytics'));
 app.use('/api', require('./routes/certificates'));
